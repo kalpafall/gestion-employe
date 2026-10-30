@@ -1,11 +1,6 @@
 pipeline {
-    // deploiement ci-cd mono-repo
-    // agent any
 
-    agent {
-        label 'agent-windows'  
-       
-    }
+    agent any
 
     environment {
         DOCKERHUB_USER = "ditdevops1"
@@ -24,14 +19,17 @@ pipeline {
 
         stage('Build Backend Image') {
             steps {
-                bat "docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} ./backend"
+                sh """
+                    docker build -t ${DOCKERHUB_USER}/${BACKEND_IMAGE}:${IMAGE_TAG} ./backend
+                """
             }
         }
 
-
-         stage('Build Frontend Image') {
+        stage('Build Frontend Image') {
             steps {
-                bat "docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} ./frontend"
+                sh """
+                    docker build -t ${DOCKERHUB_USER}/${FRONTEND_IMAGE}:${IMAGE_TAG} ./frontend
+                """
             }
         }
 
@@ -42,28 +40,33 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    bat """
-                        docker login -u %DOCKER_USER% -p %DOCKER_PASS%
-                        docker push %DOCKERHUB_USER%/%BACKEND_IMAGE%:%IMAGE_TAG%
-                        docker push %DOCKERHUB_USER%/%FRONTEND_IMAGE%:%IMAGE_TAG%
-                    """
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                        docker push "$DOCKERHUB_USER/$BACKEND_IMAGE:$IMAGE_TAG"
+
+                        docker push "$DOCKERHUB_USER/$FRONTEND_IMAGE:$IMAGE_TAG"
+
+                        docker logout
+                    '''
                 }
             }
         }
-    // stage docker compose
+
         stage('Deploy with Docker Compose') {
             steps {
-                bat "docker-compose up -d --build"
+                sh 'docker compose up -d --build'
             }
         }
     }
 
     post {
         success {
-            echo "Déploiement Backend et Frontend Gestion employé réussiiiii !"
+            echo "Déploiement Backend et Frontend Gestion Employé réussi !"
         }
+
         failure {
-            echo "Le déploiement a échoué, vérifiez les logs Jenkinssss."
+            echo "Le déploiement a échoué. Vérifiez les logs Jenkins."
         }
     }
 }
